@@ -1,0 +1,328 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#10131b">
+<meta name="description" content="PixelVault Retro Gaming Arcade">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<title>PixelVault - Retro Arcade</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #10131b;
+  color: #f4f6fb;
+  font-family: system-ui, sans-serif;
+}
+header {
+  padding: 20px;
+  background: #191e2a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #30394b;
+}
+.logo { font-size: 23px; font-weight: bold; color: #a78bfa; }
+main { max-width: 1100px; margin: auto; padding: 25px 16px; }
+h1 { font-size: 42px; line-height: 1.1; }
+p { color: #9ba7bb; }
+button, select, input {
+  padding: 12px;
+  border-radius: 9px;
+  border: 1px solid #30394b;
+  background: #202737;
+  color: white;
+  font-size: 14px;
+}
+button { cursor: pointer; background: #a78bfa; color: #171322; font-weight: bold; }
+.panel {
+  background: #191e2a;
+  padding: 18px;
+  border: 1px solid #30394b;
+  border-radius: 15px;
+  margin-bottom: 18px;
+}
+.screen {
+  background: #080b11;
+  border-radius: 12px;
+  min-height: 300px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+#game { width: 100%; min-height: 300px; }
+#game canvas { max-width: 100%; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+input, select { width: 100%; margin: 7px 0 15px; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
+  gap: 12px;
+}
+.game-card {
+  background: #202737;
+  padding: 15px;
+  border-radius: 12px;
+}
+.game-card button { margin-top: 10px; }
+nav { display: flex; gap: 8px; flex-wrap: wrap; margin: 20px 0; }
+nav button { background: #202737; color: white; }
+nav button.active { background: #a78bfa; color: #171322; }
+.section { display: none; }
+.section.active { display: block; }
+#status { color: #9ba7bb; font-size: 13px; }
+footer { text-align: center; padding: 25px; color: #9ba7bb; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">✦ PixelVault</div>
+  <button onclick="installApp()">Install App</button>
+</header>
+
+<main>
+<h1>Press Play.<br>Anywhere.</h1>
+<p>Your personal retro gaming arcade.</p>
+
+<nav>
+<button class="active" onclick="tab('player',this)">🎮 Player</button>
+<button onclick="tab('library',this)">📚 Library</button>
+<button onclick="tab('systems',this)">🕹 Systems</button>
+</nav>
+
+<section id="player" class="section active">
+<div class="panel">
+  <h3>NOW PLAYING</h3>
+  <div class="screen">
+    <div id="empty">🎮<br>Your next adventure starts here</div>
+    <div id="game"></div>
+  </div>
+  <div class="controls">
+    <button onclick="fullScreen()">Fullscreen</button>
+    <button onclick="restart()">Restart</button>
+  </div>
+  <p id="status">Ready to play.</p>
+</div>
+
+<div class="panel">
+  <h3>Load a game</h3>
+  <label>Choose system</label>
+  <select id="system">
+    <option value="nes">NES</option>
+    <option value="snes">SNES</option>
+    <option value="gb">Game Boy / Color</option>
+    <option value="gba">Game Boy Advance</option>
+    <option value="n64">Nintendo 64</option>
+    <option value="nds">Nintendo DS</option>
+    <option value="segaMD">Sega Genesis</option>
+    <option value="psx">PlayStation</option>
+    <option value="psp">PSP</option>
+    <option value="arcade">Arcade MAME</option>
+    <option value="fbneo">FinalBurn Neo</option>
+    <option value="atari2600">Atari 2600</option>
+    <option value="atari7800">Atari 7800</option>
+    <option value="lynx">Atari Lynx</option>
+    <option value="pce">PC Engine</option>
+    <option value="neogeo">Neo Geo</option>
+    <option value="wswan">WonderSwan</option>
+    <option value="ngp">Neo Geo Pocket</option>
+    <option value="dos">DOS</option>
+    <option value="quake">Quake</option>
+  </select>
+
+  <label>Choose ROM</label>
+  <input type="file" id="rom">
+
+  <label>Optional BIOS</label>
+  <input type="file" id="bios">
+
+  <button onclick="loadGame()">Load Game →</button>
+</div>
+</section>
+
+<section id="library" class="section">
+<div class="panel">
+<h2>📚 My Game Library</h2>
+<p>Your games are stored locally in this browser.</p>
+<input id="search" placeholder="Search games..." oninput="renderLibrary()">
+<div id="libraryGrid" class="grid"></div>
+</div>
+</section>
+
+<section id="systems" class="section">
+<div class="panel">
+<h2>Supported systems</h2>
+<div id="systemList" class="grid"></div>
+</div>
+</section>
+
+<div class="panel">
+<h3>About PixelVault</h3>
+<p>Bring your own legally obtained ROM and BIOS files.
+PixelVault does not distribute copyrighted games.</p>
+</div>
+</main>
+
+<footer>PixelVault Retro Arcade</footer>
+
+<script>
+const systems = {
+ nes:["NES","fceumm"], snes:["SNES","snes9x"],
+ gb:["Game Boy / Color","gambatte"], gba:["Game Boy Advance","mgba"],
+ n64:["Nintendo 64","mupen64plus_next"], nds:["Nintendo DS","melonds"],
+ segaMD:["Sega Genesis","genesis_plus_gx"],
+ psx:["PlayStation","pcsx_rearmed"], psp:["PSP","ppsspp"],
+ arcade:["Arcade MAME","mame2003_plus"],
+ fbneo:["FinalBurn Neo","fbneo"],
+ atari2600:["Atari 2600","stella2014"],
+ atari7800:["Atari 7800","prosystem"],
+ lynx:["Atari Lynx","handy"], pce:["PC Engine","mednafen_pce"],
+ neogeo:["Neo Geo","fbneo"], wswan:["WonderSwan","mednafen_wswan"],
+ ngp:["Neo Geo Pocket","mednafen_ngp"],
+ dos:["DOS","dosbox_pure"], quake:["Quake","tyrquake"]
+};
+
+let games = [];
+let currentGame = null;
+let installPrompt = null;
+let biosFile = null;
+
+const dbPromise = new Promise((resolve,reject)=>{
+  const request = indexedDB.open("PixelVaultDB",1);
+  request.onupgradeneeded = () => request.result.createObjectStore("games",{keyPath:"id",autoIncrement:true});
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error);
+});
+
+async function db(action,value) {
+  const database = await dbPromise;
+  return new Promise((resolve,reject)=>{
+    const tx = database.transaction("games",action==="getAll"?"readonly":"readwrite");
+    const store = tx.objectStore("games");
+    const req = action==="add" ? store.add(value) :
+                action==="delete" ? store.delete(value) : store.getAll();
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+function tab(id,button) {
+  document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
+  button.classList.add("active");
+  if(id==="library") renderLibrary();
+}
+
+async function loadGame(game=null) {
+  const file = game ? game.blob : document.getElementById("rom").files[0];
+  const system = game ? game.system : document.getElementById("system").value;
+
+  if(!file) {
+    document.getElementById("status").textContent="Choose a ROM first.";
+    return;
+  }
+
+  const core = systems[system][1];
+  const bios = document.getElementById("bios").files[0];
+  currentGame = {name:file.name,system,core,blob:file};
+
+  if(!game) {
+    await db("add",currentGame);
+    renderLibrary();
+  }
+
+  document.getElementById("empty").style.display="none";
+  document.getElementById("game").innerHTML="";
+  document.getElementById("status").textContent="Loading "+file.name+"...";
+
+  window.EJS_player="#game";
+  window.EJS_core=core;
+  window.EJS_gameUrl=URL.createObjectURL(file);
+  window.EJS_gameName=file.name;
+  window.EJS_pathtodata="https://cdn.emulatorjs.org/stable/data/";
+  window.EJS_startOnLoaded=true;
+  if(bios) window.EJS_biosUrl=URL.createObjectURL(bios);
+
+  window.EJS_onGameStart=()=>{
+    document.getElementById("status").textContent="Playing "+file.name;
+  };
+
+  const old=document.getElementById("emulator-loader");
+  if(old) old.remove();
+
+  const script=document.createElement("script");
+  script.id="emulator-loader";
+  script.src=window.EJS_pathtodata+"loader.js";
+  script.onerror=()=>document.getElementById("status").textContent="Emulator failed to load. Check your connection.";
+  document.body.appendChild(script);
+}
+
+async function renderLibrary() {
+  const all=await db("getAll");
+  const q=document.getElementById("search").value.toLowerCase();
+  const grid=document.getElementById("libraryGrid");
+  grid.innerHTML="";
+  const filtered=all.filter(g=>g.name.toLowerCase().includes(q));
+
+  if(!filtered.length) {
+    grid.textContent="Your library is empty. Add games in the Player tab.";
+    return;
+  }
+
+  filtered.forEach(g=>{
+    const card=document.createElement("div");
+    card.className="game-card";
+    const name=document.createElement("b");
+    name.textContent=g.name;
+    const system=document.createElement("p");
+    system.textContent=systems[g.system][0];
+    const play=document.createElement("button");
+    play.textContent="Play";
+    play.onclick=()=>loadGame(g);
+    const remove=document.createElement("button");
+    remove.textContent="Remove";
+    remove.style.marginLeft="6px";
+    remove.onclick=async()=>{await db("delete",g.id);renderLibrary();};
+    card.append(name,system,play,remove);
+    grid.append(card);
+  });
+}
+
+function fullScreen() {
+  document.getElementById("game").requestFullscreen?.();
+}
+function restart() {
+  if(currentGame) loadGame(currentGame);
+}
+
+document.getElementById("bios").addEventListener("change",e=>{
+  biosFile=e.target.files[0];
+});
+
+document.getElementById("systemList").innerHTML =
+  Object.values(systems).map(s=>`<div class="game-card"><b>${s[0]}</b><p>Core: ${s[1]}</p></div>`).join("");
+
+async function installApp() {
+  if(installPrompt) {
+    installPrompt.prompt();
+    installPrompt=null;
+  } else {
+    alert("On iPhone: open in Safari → Share → Add to Home Screen. On Android: use your browser menu → Install app.");
+  }
+}
+
+window.addEventListener("beforeinstallprompt",e=>{
+  e.preventDefault();
+  installPrompt=e;
+});
+
+if("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  navigator.serviceWorker.register("./sw.js").catch(console.error);
+}
+</script>
+</body>
+</html>
